@@ -6,6 +6,9 @@ import scipy.io as sio
 import scipy.spatial.transform as st
 from itertools import combinations
 
+# --- Project parameters, adjust this to where your calibration.toml is stored!
+projectDir = 'D:/Project/Sleap-Models/3dT/20250504191009'
+
 # --- Helper functions for relative geometry ---
 def calculate_pairwise_distances(positions):
     """Calculates pairwise Euclidean distances between camera positions."""
@@ -73,7 +76,6 @@ def compare_relative_geometries(orig_distances, orig_angles, new_distances, new_
         new_angle_val = new_angles.get(pair_key, float('nan')) if new_angles else float('nan')
         print(f"    Relative Angle:    {orig_label} = {orig_angle_val:.2f} deg, {new_label} = {new_angle_val:.2f} deg")
 
-projectDir = 'D:/Project/Sleap-Models/3dT/20250504191009'
 sleapCalib = os.path.join(projectDir,'calibration.toml')
 camera_names = []
 
