@@ -1,4 +1,4 @@
-### This repo contains a pipeline making use of sleap-anipose's 3D calibration toolkit to generate calibration files complatible with Label3D (Required for DANNCE and SDANNCE).
+# This repo contains a pipeline making use of sleap-anipose's 3D calibration toolkit to generate a project ready for Label3D labelling.
 
 ## To use
 
