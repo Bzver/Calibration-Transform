@@ -4,7 +4,7 @@ import scipy.io as sio
 import numpy as np
 
 # --- Project parameters, change it to the location of your sdannce project for Label3D.
-projectDir = 'D:/Project/sdannce/demo/123'
+projectDir = 'D:/Data/DGH/3D/20250517'
 
 FFPROBE_PATH = "ffprobe" 
 

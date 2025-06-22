@@ -6,10 +6,13 @@ behaVideo = '2025-05-17 20-47-47_segment_1.mp4'
 
 input_video = os.path.join(projectDir, behaVideo)
 
-FFMPEG_PATH = "ffmpeg"  
-FFPROBE_PATH = "ffprobe" 
+# Number of camera views (can be 2, 3, 4, 5, or 6)
+num_camera_views = 4 # Default to 4 as per current script behavior
 
-def vd_separ_2by2_2(input_video_path):
+FFMPEG_PATH = "ffmpeg"
+FFPROBE_PATH = "ffprobe"
+def vd_separ_2(input_video_path):
+    global num_camera_views # Declare use of global variable
 
     try:
         if not os.path.isfile(input_video_path):
@@ -28,61 +31,42 @@ def vd_separ_2by2_2(input_video_path):
 
         width = int(width)
         height = int(height)
+
+        # Assuming views are arranged in a x by 2 fashion (2 views a row)
         view_width = width // 2
-        view_height = height // 2
+        num_rows = num_camera_views // 2 + 1 if num_camera_views % 2 > 0 else num_camera_views // 2
+        view_height = height // num_rows
 
         # Determine base output directory
         input_video_dir = os.path.dirname(input_video_path)
         main_output_folder = input_video_dir
 
         # Initialize folder structure
-        cam1Dir = os.path.join(main_output_folder, 'Videos', 'Camera1')
-        cam2Dir = os.path.join(main_output_folder, 'Videos', 'Camera2')
-        cam3Dir = os.path.join(main_output_folder, 'Videos', 'Camera3')
-        cam4Dir = os.path.join(main_output_folder, 'Videos', 'Camera4')
-        camDirAll = [cam1Dir, cam2Dir, cam3Dir, cam4Dir]
-        for camDir in camDirAll:
-            os.makedirs(camDir, exist_ok=True)
+        cam_dirs = []
+        for i in range(1, num_camera_views + 1):
+            cam_dir = os.path.join(main_output_folder, 'Videos', f'Camera{i}')
+            cam_dirs.append(cam_dir)
+            os.makedirs(cam_dir, exist_ok=True)
 
         # ffmpeg commands for each view (no audio)
-        ffmpeg_cmds = [
-            [
+        ffmpeg_cmds = []
+        for i in range(num_camera_views):
+            row = i // 2
+            col = i % 2
+            x_offset = col * view_width
+            y_offset = row * view_height
+            output_file = os.path.join(cam_dirs[i], "0.mp4")
+
+            cmd = [
                 FFMPEG_PATH,
                 "-i", input_video_path,
-                "-filter:v", f"crop={view_width}:{view_height}:0:0",
-                "-c:v", "libx264", # Top-left
-                "-preset", "slow",
-                "-crf", "18",
-                os.path.join(cam1Dir, "0.mp4"),
-            ],
-            [
-                FFMPEG_PATH,
-                "-i", input_video_path,
-                "-filter:v", f"crop={view_width}:{view_height}:{view_width}:0", # Top-right
+                "-filter:v", f"crop={view_width}:{view_height}:{x_offset}:{y_offset}",
                 "-c:v", "libx264",
-                "-preset", "slow",
+                "-preset", "medium",
                 "-crf", "18",
-                os.path.join(cam2Dir, "0.mp4"),
-            ],
-            [
-                FFMPEG_PATH,
-                "-i", input_video_path,
-                "-filter:v", f"crop={view_width}:{view_height}:0:{view_height}", # Bottom-left
-                "-c:v", "libx264",
-                "-preset", "slow",
-                "-crf", "18",
-                os.path.join(cam3Dir, "0.mp4"),
-            ],
-            [
-                FFMPEG_PATH,
-                "-i", input_video_path,
-                "-filter:v", f"crop={view_width}:{view_height}:{view_width}:{view_height}", # Bottom-right
-                "-c:v", "libx264",
-                "-preset", "slow",
-                "-crf", "18",
-                os.path.join(cam4Dir, "0.mp4"),
-            ],
-        ]
+                output_file,
+            ]
+            ffmpeg_cmds.append(cmd)
 
         # Execute ffmpeg commands
         for cmd in ffmpeg_cmds:
@@ -97,4 +81,4 @@ def vd_separ_2by2_2(input_video_path):
     except Exception as e:
         print(f"An error occurred: {e}")
 
-vd_separ_2by2_2(input_video)
+vd_separ_2(input_video)
