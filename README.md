@@ -1,5 +1,3 @@
-# This repo contains a pipeline making use of sleap-anipose's 3D calibration toolkit to generate a project ready for Label3D labelling.
-
 ## To use
 
 - Follow [sleap-anipose installation guide](https://github.com/talmolab/sleap-anipose/blob/main/README.md) 
