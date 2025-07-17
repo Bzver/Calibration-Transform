@@ -339,6 +339,7 @@ def process_sleap_calibration(calib_dir, show_plots=True, save_mat_files=True):
         plt.tight_layout()
         plt.show()
 
-projectDir = "D:/Project/SDANNCE-Models/555-5CAM"
-calibDir = os.path.join(projectDir,"SA_calib")
-process_sleap_calibration(calibDir, show_plots=True, save_mat_files=True)
+if __name__ == "__main__":
+    projectDir = "D:/Project/SDANNCE-Models/555-5CAM"
+    calibDir = os.path.join(projectDir,"SA_calib")
+    process_sleap_calibration(calibDir, show_plots=True, save_mat_files=True)

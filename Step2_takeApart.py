@@ -1,70 +1,90 @@
-import subprocess
 import os
-import datetime
 import shutil
 
-projectDir = 'D:/Project/Sleap-Models/3dT'
-calibVideo = '2025-05-17 14-22-55.mkv'
+import tqdm
+import datetime
+import subprocess
 
-input_video = os.path.join(projectDir, calibVideo)
-
-# Number of camera views (can be 2, 3, 4, 5, or 6)
-num_camera_views = 4 # Default to 4 as per current script behavior
-
-FFMPEG_PATH = "ffmpeg"
-FFPROBE_PATH = "ffprobe"
-
-current_datetime = datetime.datetime.now()
-formatted_datetime = current_datetime.strftime("%Y%m%d%H%M%S")
-
-def vd_separ(input_video_path, num_views, output_dirs):
-
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
+def vd_separ_calib(calib_dir, calibVid, numViews):
+    
     try:
         ffprobe_cmd = [
             FFPROBE_PATH,
             "-v", "error",
             "-select_streams", "v:0",
-            "-show_entries", "stream=width,height,r_frame_rate",
+            "-show_entries", "stream=width,height",
+            "-show_entries", "format=duration",
             "-of", "default=noprint_wrappers=1:nokey=1",
-            input_video_path
+            calibVid
         ]
         ffprobe_output = subprocess.check_output(ffprobe_cmd).decode("utf-8").strip().split('\n')
-        width, height, fps_str = ffprobe_output
-
+        width, height, duration_str = ffprobe_output
         width = int(width)
         height = int(height)
-        fps = eval(fps_str)
+        total_duration = float(duration_str)
 
         # Assuming views are arranged in a x by 2 fashion (2 views a row)
         view_width = width // 2
-        num_rows = num_views // 2 + 1 if num_views % 2 > 0 else num_views // 2
+        num_rows = numViews // 2 + 1 if numViews % 2 > 0 else numViews // 2
         view_height = height // num_rows
 
         ffmpeg_cmds = []
-        for i in range(num_views):
+        skipped_views = []
+        outputDirs = []
+
+        for i in range(numViews):
+            output_dir = os.path.join(calib_dir, f"view{i+1}", "calibration_images")
+            outputDirs.append(output_dir)
+            os.makedirs(output_dir, exist_ok=True)
+
+        for i in range(numViews):
             row = i // 2
             col = i % 2
             x_offset = col * view_width
             y_offset = row * view_height
-            output_file = os.path.join(output_dirs[i], f"{formatted_datetime}-view{i+1}-calibration.mp4")
+            output_file = os.path.join(outputDirs[i], f"SA_calib-view{i+1}-calibration.mp4")
+            
+            if os.path.exists(output_file):
+                print(f"{output_file} already exists. Skipping view{i+1}")
+                skipped_views.append(i)
+            else:
+                cmd = [
+                    FFMPEG_PATH,
+                    "-i", calibVid,
+                    "-filter:v", f"crop={view_width}:{view_height}:{x_offset}:{y_offset}",
+                    "-c:v", "libx264",
+                    "-preset", "medium",
+                    "-crf", "18",
+                    "-progress", "pipe:1",
+                    "-nostats",
+                    output_file,
+                ]
+                ffmpeg_cmds.append(cmd)
 
-            cmd = [
-                FFMPEG_PATH,
-                "-i", input_video_path,
-                "-filter:v", f"crop={view_width}:{view_height}:{x_offset}:{y_offset}",
-                "-c:v", "libx264",
-                "-preset", "medium",
-                "-crf", "18",
-                output_file,
-            ]
-            ffmpeg_cmds.append(cmd)
+        print("Starting video separation for calibration...")
+        for i, cmd in enumerate(ffmpeg_cmds):
+            current_view = i+1
+            while current_view in skipped_views:
+                current_view +=1 
+            print(f"\nProcessing View {i+1}/{numViews-len(skipped_views)}")
+            # Start subprocess with stdout as PIPE to capture progress
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
 
-        for cmd in ffmpeg_cmds:
-            subprocess.run(cmd, check=True)
+            with tqdm(total=int(total_duration), unit="s", desc=f"View {current_view}") as pbar:
+                for line in process.stdout:
+                    if "time=" in line:
+                        try:
+                            # Extract time string (e.g., "00:00:15.12")
+                            time_str = line.split("time=")[1].split(" ")[0]
+                            h, m, s = map(float, time_str.split(':'))
+                            current_time_seconds = h * 3600 + m * 60 + s
+                            pbar.update(current_time_seconds - pbar.n) # Update with the difference
+                        except (IndexError, ValueError):
+                            pass # Ignore lines that don't parse as expected
+            process.wait() # Wait for the process to complete
 
         print("Video separation complete.")
+        return True
 
     except subprocess.CalledProcessError as e:
         print(f"FFmpeg error: {e}")
@@ -74,31 +94,45 @@ def vd_separ(input_video_path, num_views, output_dirs):
         print(f"An error occurred: {e}")
 
 
-# Create the main output directory with the formatted datetime
-main_output_dir = os.path.join(projectDir, formatted_datetime)
-os.makedirs(main_output_dir, exist_ok=True)
+if __name__ == "__main__":
+    projectDir = 'D:/DGH/Data/Videos/2025-07-07 7day Marathon'
+    calibVideo = '2025-07-09-first3h.mkv'
 
-# Copy board.jpg and board.toml to the main output directory
-board_jpg_path = os.path.join(projectDir, "board.jpg")
-board_toml_path = os.path.join(projectDir, "board.toml")
+    input_video = os.path.join(projectDir, calibVideo)
 
-if os.path.exists(board_jpg_path):
-    shutil.copy(board_jpg_path, main_output_dir)
-    print(f"Copied board.jpg to {main_output_dir}")
-else:
-    print(f"board.jpg not found in {projectDir}")
+    num_camera_views = 4
 
-if os.path.exists(board_toml_path):
-    shutil.copy(board_toml_path, main_output_dir)
-    print(f"Copied board.toml to {main_output_dir}")
-else:
-    print(f"board.toml not found in {projectDir}")
+    FFMPEG_PATH = "ffmpeg"
+    FFPROBE_PATH = "ffprobe"
 
-# Create the subfolders for each view inside the main output directory and collect their paths
-output_directories = []
-for i in range(1, num_camera_views + 1):
-    output_dir = os.path.join(main_output_dir, f"view{i}", "calibration_images")
-    output_directories.append(output_dir)
-    os.makedirs(output_dir, exist_ok=True)
+    current_datetime = datetime.datetime.now()
+    formatted_datetime = current_datetime.strftime("%Y%m%d%H%M%S")
 
-vd_separ(input_video, num_camera_views, output_directories)
+    # Create the main output directory with the formatted datetime
+    main_output_dir = os.path.join(projectDir, formatted_datetime)
+    os.makedirs(main_output_dir, exist_ok=True)
+
+    # Copy board.jpg and board.toml to the main output directory
+    board_jpg_path = os.path.join(projectDir, "board.jpg")
+    board_toml_path = os.path.join(projectDir, "board.toml")
+
+    if os.path.exists(board_jpg_path):
+        shutil.copy(board_jpg_path, main_output_dir)
+        print(f"Copied board.jpg to {main_output_dir}")
+    else:
+        print(f"board.jpg not found in {projectDir}")
+
+    if os.path.exists(board_toml_path):
+        shutil.copy(board_toml_path, main_output_dir)
+        print(f"Copied board.toml to {main_output_dir}")
+    else:
+        print(f"board.toml not found in {projectDir}")
+
+    # Create the subfolders for each view inside the main output directory and collect their paths
+    output_directories = []
+    for i in range(1, num_camera_views + 1):
+        output_dir = os.path.join(main_output_dir, f"view{i}", "calibration_images")
+        output_directories.append(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+    vd_separ_calib(input_video, num_camera_views, output_directories)
