@@ -1,9 +1,12 @@
 import os
 import shutil
 
-import tqdm
-import datetime
+from tqdm import tqdm
+from datetime import datetime
 import subprocess
+
+FFMPEG_PATH = "ffmpeg"
+FFPROBE_PATH = "ffprobe"
 
 def vd_separ_calib(calib_dir, calibVid, numViews):
     
@@ -95,44 +98,11 @@ def vd_separ_calib(calib_dir, calibVid, numViews):
 
 
 if __name__ == "__main__":
-    projectDir = 'D:/DGH/Data/Videos/2025-07-07 7day Marathon'
-    calibVideo = '2025-07-09-first3h.mkv'
+    projectDir = 'D:/DGH/Data/Videos/2025-07-14 7day Marathon/'
+    calibVideo = '2025-07-16-first3h.mkv'
 
     input_video = os.path.join(projectDir, calibVideo)
 
     num_camera_views = 4
 
-    FFMPEG_PATH = "ffmpeg"
-    FFPROBE_PATH = "ffprobe"
-
-    current_datetime = datetime.datetime.now()
-    formatted_datetime = current_datetime.strftime("%Y%m%d%H%M%S")
-
-    # Create the main output directory with the formatted datetime
-    main_output_dir = os.path.join(projectDir, formatted_datetime)
-    os.makedirs(main_output_dir, exist_ok=True)
-
-    # Copy board.jpg and board.toml to the main output directory
-    board_jpg_path = os.path.join(projectDir, "board.jpg")
-    board_toml_path = os.path.join(projectDir, "board.toml")
-
-    if os.path.exists(board_jpg_path):
-        shutil.copy(board_jpg_path, main_output_dir)
-        print(f"Copied board.jpg to {main_output_dir}")
-    else:
-        print(f"board.jpg not found in {projectDir}")
-
-    if os.path.exists(board_toml_path):
-        shutil.copy(board_toml_path, main_output_dir)
-        print(f"Copied board.toml to {main_output_dir}")
-    else:
-        print(f"board.toml not found in {projectDir}")
-
-    # Create the subfolders for each view inside the main output directory and collect their paths
-    output_directories = []
-    for i in range(1, num_camera_views + 1):
-        output_dir = os.path.join(main_output_dir, f"view{i}", "calibration_images")
-        output_directories.append(output_dir)
-        os.makedirs(output_dir, exist_ok=True)
-
-    vd_separ_calib(input_video, num_camera_views, output_directories)
+    vd_separ_calib(projectDir, input_video, num_camera_views)
