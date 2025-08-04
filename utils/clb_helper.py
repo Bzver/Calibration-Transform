@@ -140,6 +140,9 @@ def generate_sync_profile(num_view:int, project_dir:str) -> bool:
     videosample = os.path.join(project_dir, "Videos", "Camera1", "0.mp4")
     print("---Getting the frame counts---")
     framecount = get_frame_count_cv2(videosample)
+    if framecount is None:
+        print("Error getting frame count.")
+        return False
 
     camnames = [f"Camera{i+1}" for i in range(num_cam)]
     sync, params = construct_sync_and_params(num_cam, project_dir, framecount)
@@ -155,13 +158,11 @@ def generate_sync_profile(num_view:int, project_dir:str) -> bool:
     print(f"\nAll camera sync data saved to: {output_mat_path}")
     return True
 
-def construct_sync_and_params(num_cam:int, calib_dir:str, framecount:str, cam_names:List[str]
-        ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    
+def construct_sync_and_params(num_cam:int, calib_dir:str, framecount:str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     params, sync = [], []
 
     for i in range(num_cam):
-            print(f"---Processing {cam_names[i]}---")
+            print(f"---Processing Camera{i+1}---")
             data_2d = np.zeros((framecount, 4))
             data_3d = np.zeros((framecount, 6))
             data_frame = np.arange(framecount, dtype=np.float64)

@@ -197,36 +197,26 @@ def calculate_plane_rotation(camera_positions):
 
 def apply_rotation(plane_rotation_matrix, centroid, intersection, camera_positions, camera_orientations):
     """Applies a series of transformations to camera positions and orientations."""
-    # Translate intersection point to origin (Z=0) and rotate cameras around it
+    # Apply rotation and translation to the intersection point
     rotated_intersect = np.dot(plane_rotation_matrix, (intersection - centroid))
-    target_intersection_z = 0.0
-    z_translation = target_intersection_z - rotated_intersect[2]
+    z_translation = 0.0 - rotated_intersect[2]
 
+    # Apply rotation and translation to all camera positions at once
     transformed_positions = np.dot(plane_rotation_matrix, (camera_positions - centroid).T).T 
     transformed_positions[:, 2] += z_translation
     
+    # Calculate the transformed intersection point
     transformed_intersect = rotated_intersect + np.array([0, 0, z_translation])
 
     # Apply a 180-degree rotation around the X-axis to flip the coordinate system
     R_180_x = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
     
-    temp_transformed_positions = np.zeros_like(transformed_positions)
-    for i in range(len(transformed_positions)):
-        pos_relative_to_intersect = transformed_positions[i] - transformed_intersect
-        rotated_pos_relative = R_180_x @ pos_relative_to_intersect
-        temp_transformed_positions[i] = rotated_pos_relative + transformed_intersect
-    transformed_positions = temp_transformed_positions
+    # Translate all positions relative to the intersection point, rotate, and translate back
+    transformed_positions = (transformed_positions - transformed_intersect) @ R_180_x + transformed_intersect
 
-    transformed_orientations = []
-    plot_cam_idx = 0 # Use a 0-based index for plotting transformed cameras
+    # Apply both rotations to all camera orientation vectors at once
+    transformed_orientations = camera_orientations @ plane_rotation_matrix.T @ R_180_x
 
-    original_dir_for_this_cam = camera_orientations[plot_cam_idx]
-    intermediate_dir = np.dot(plane_rotation_matrix, original_dir_for_this_cam)
-    transformed_dir = R_180_x @ intermediate_dir
-    transformed_orientations.append(transformed_dir)
-    plot_cam_idx +=1
-
-    transformed_orientations = np.array(transformed_orientations)
     return transformed_positions, transformed_orientations, transformed_intersect
 
 def calculate_pairwise_distances(positions):
@@ -326,14 +316,13 @@ def plot_relative_geometry(ax, cam_pos, cam_dir, numCam, cam_name, intersect):
     ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
     ax.legend()
 
-def save_transformed_mat(calib_dir:str, original_params_list:List[Dict[str, Any]], transformed_positions:NDArray, plane_rotation_matrix:NDArray):
+def save_transformed_mat(calib_dir:str, original_params_list:List[Dict[str, Any]], transformed_positions:NDArray, transformed_orientations:NDArray):
     print("\nExporting transformed camera parameters to .mat files...")
     mat_save_folder = os.path.join(calib_dir, "Calibration")
     R_180_x = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
     for i, orig_params in enumerate(original_params_list):
         # Combine all rotations
-        #R_new_from_org = 
-        R_final = orig_params['R_orig'] @ plane_rotation_matrix.T @ R_180_x
+        R_final = orig_params['R_orig'] @ transformed_orientations.T @ R_180_x
         P_final= transformed_positions[i]
         # New translation vector t = -R * C
         t_final = -R_final @ P_final.T
