@@ -16,11 +16,11 @@ This repository provides a Python script for performing camera calibration and p
 
 ## Usage
 
-The primary entry point for this tool is the `run.py` script. This script handles project setup, video processing, and calibration.
+The primary entry point for this tool is the `calib_run.py` script. This script handles project setup, video processing, and calibration.
 
-### Configuration in `run.py`
+### Configuration in `calib_run.py`
 
-Before running, you need to configure the following variables in `run.py`:
+Before running, you need to configure the following variables in `calib_run.py`:
 
 -   `ROOTPATH`: The base directory where your project folders (`SD-` prefixed) and calibration data (`SA_calib`) will be stored or are located.
     Example: `ROOTPATH = "D:/Project/SDANNCE-Models/4CAM-3D-2ETUP"`
@@ -45,7 +45,7 @@ Before running, you need to configure the following variables in `run.py`:
 To run the script, navigate to the `Calibration-Transform` directory in your terminal and execute:
 
 ```bash
-python run.py
+python calib_run.py
 ```
 
 The script will guide you through creating a new project or loading an existing one, processing videos, and performing calibration.
