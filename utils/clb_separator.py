@@ -4,7 +4,7 @@ import subprocess
 from tqdm import tqdm
 
 from typing import List, Tuple
-from clb_helper import create_output_dirs
+from .clb_helper import create_output_dirs
 
 def separate_video_stream(num_view:int, video_filepath:str, project_dir:str, mode:str) -> bool:
     try:

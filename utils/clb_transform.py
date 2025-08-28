@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from typing import List, Tuple, Dict, Any
 from numpy.typing import NDArray
 
-from clb_helper import check_dannce_mat
+from .clb_helper import check_dannce_mat
 
 def process_sleap_calibration(calib_dir:str, show_plots:bool=True, save_mat_files:bool=True) -> bool:
     """
