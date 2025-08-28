@@ -21,7 +21,8 @@ if __name__ == "__main__":
     folder_path = folder_select_dialog()
     video_files = collect_all_videos_in_folder(folder_path)
     for video_file in video_files:
-        output_dir = os.path.join(folder_path, f"{video_file}")
+        video_filename = os.path.basename(video_file).split(".")[0]
+        output_dir = os.path.join(folder_path, f"{video_filename}")
         os.makedirs(output_dir, exist_ok=True)
         cbs.separate_video_stream(num_view=4, video_filepath=video_file, project_dir=output_dir, mode="calibration")
 
