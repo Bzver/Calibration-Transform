@@ -11,10 +11,10 @@ import utils.clb_separator as cbs
 import utils.clb_transform as cbt
 import utils.slap_functions as cbsp
 
-ROOTPATH = "D:/Project/DLC-Models/3DLC"
+ROOTPATH = "D:/Project/DLC-Models/3DLC/3D-Old_R"
 CAMVIEWS = 2  # Number of camera views (can be 2, 3, 4, 5, or 6)
 EXP = None
-CALIB = "D:/Project/DLC-Models/3DLC/2025-07-14 22-17-24"
+CALIB = "D:/Project/DLC-Models/3DLC/3D-Old_R/"
 MERGED_VIDEO = False
 
 def determine_project_dir(root_path:str, new_project:bool=False) -> Union[str, None]:
@@ -141,8 +141,9 @@ def create_new_project(
         load_video(num_view, exp_video_path, project_dir, "experiment", merged_video_stream=merge_video_stream)
 
     calib_dir = os.path.join(root_path, "SA_calib")
+    os.makedirs(calib_dir, exist_ok=True)
     calib_lost_file = cbh.check_calib_integrity(root_path, num_view)
-    
+
     if calib_lost_file:
         if any(["calibration.toml" in f for f in calib_lost_file]):
             load_video(num_view, calib_video_path, calib_dir, "calibration", merged_video_stream=merge_video_stream)
