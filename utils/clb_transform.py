@@ -9,8 +9,7 @@ import scipy.io as sio
 import scipy.spatial.transform as st
 import matplotlib.pyplot as plt
 
-from typing import List, Tuple, Dict, Any
-from numpy.typing import NDArray
+from typing import List, Tuple, Dict, Any, Union
 
 from .clb_helper import check_dannce_mat
 
@@ -52,7 +51,7 @@ def process_sleap_calibration(calib_dir:str, show_plots:bool=True, save_mat_file
             return False
     
     if any([not check_dannce_mat(calib_dir), save_mat_files]):
-        mat_save_folder = save_transformed_mat(calib_dir, original_params_list, transformed_positions, transformed_orientations)
+        mat_save_folder = save_transformed_mat(calib_dir, original_params_list, transformed_positions, plane_rotation_matrix)
 
     mat_cam_positions, mat_cam_orientations = load_and_validate_mat(cam_count, mat_save_folder)
     mat_intersect = calculate_camera_intersect(mat_cam_orientations, mat_cam_positions)
@@ -82,17 +81,18 @@ def process_sleap_calibration(calib_dir:str, show_plots:bool=True, save_mat_file
 
     return True
 
-def extract_original_calibration(calib_filepath:str) -> Tuple[List[Dict[str, Any]], NDArray, NDArray, int]:
+def extract_original_calibration(calib_filepath:str
+            ) -> Tuple[List[Dict[str, Any]], np.ndarray, np.ndarray, int]:
     if not os.path.isfile(calib_filepath):
         print(f"Error: Calibration file not found at {calib_filepath}")
-        return False
+        return [], [], [], 0
 
     try:
         with open(calib_filepath, 'r') as f:
             clbf = toml.load(f)
     except Exception as e:
         print(f"Error reading or parsing TOML file: {e}")
-        return False
+        return [], [], [], 0
 
     original_params_list = []
     camera_positions = []
@@ -126,7 +126,7 @@ def extract_original_calibration(calib_filepath:str) -> Tuple[List[Dict[str, Any
 
     if not camera_positions:
         print("No camera data with a 'matrix' key found in the calibration file.")
-        return False
+        return [], [], [], 0
         
     camera_positions = np.array(camera_positions)
     camera_orientations = np.array(camera_orientations)
@@ -138,11 +138,11 @@ def calculate_camera_intersect(cam_orientations, cam_positions):
     Find the point of closest intersection of the camera orientation rays
 
     Args:
-        cam_orientations (np.ndarray]): List of camera orientation vectors.
-        cam_positions (np.ndarray]): List of camera position vectors.
+        cam_orientations (np.np.ndarray]): List of camera orientation vectors.
+        cam_positions (np.np.ndarray]): List of camera position vectors.
 
     Returns:
-        np.ndarray: The point of closest intersection.
+        np.np.ndarray: The point of closest intersection.
     
     """
     A_lstsq = np.vstack([np.eye(3) - np.outer(d, d) for d in cam_orientations])
@@ -162,14 +162,14 @@ def calculate_plane_rotation(camera_positions):
     the camera positions, which can be used as a translation reference.
 
     Args:
-        camera_positions (NDArray): A NumPy array of shape (N, 3), where N is the number of
+        camera_positions (np.ndarray): A NumPy array of shape (N, 3), where N is the number of
                                      cameras. Each row represents the 3D position of a camera.
 
     Returns:
-        Tuple[NDArray, NDArray]: A tuple containing:
-            - plane_rotation_matrix (NDArray): A 3x3 rotation matrix that, when applied to
+        Tuple[np.ndarray, np.ndarray]: A tuple containing:
+            - plane_rotation_matrix (np.ndarray): A 3x3 rotation matrix that, when applied to
               the camera positions, aligns the fitted plane with the XY-plane.
-            - centroid (NDArray): A 1D NumPy array representing the 3D centroid of the
+            - centroid (np.ndarray): A 1D NumPy array representing the 3D centroid of the
               camera positions.
     """
     centroid = np.mean(camera_positions, axis=0)
@@ -316,13 +316,13 @@ def plot_relative_geometry(ax, cam_pos, cam_dir, numCam, cam_name, intersect):
     ax.set_xlabel('X'); ax.set_ylabel('Y'); ax.set_zlabel('Z')
     ax.legend()
 
-def save_transformed_mat(calib_dir:str, original_params_list:List[Dict[str, Any]], transformed_positions:NDArray, transformed_orientations:NDArray):
+def save_transformed_mat(calib_dir:str, original_params_list:List[Dict[str, Any]], transformed_positions:np.ndarray, plane_rotation_matrix:np.ndarray):
     print("\nExporting transformed camera parameters to .mat files...")
     mat_save_folder = os.path.join(calib_dir, "Calibration")
     R_180_x = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]])
     for i, orig_params in enumerate(original_params_list):
         # Combine all rotations
-        R_final = orig_params['R_orig'] @ transformed_orientations.T @ R_180_x
+        R_final = orig_params['R_orig'] @ plane_rotation_matrix.T @ R_180_x
         P_final= transformed_positions[i]
         # New translation vector t = -R * C
         t_final = -R_final @ P_final.T
@@ -339,7 +339,7 @@ def save_transformed_mat(calib_dir:str, original_params_list:List[Dict[str, Any]
         mat_save_path = os.path.join(mat_save_folder, mat_filename)
         os.makedirs(mat_save_folder, exist_ok=True)
         sio.savemat(mat_save_path, mat_data)
-        print(f"Saved: {mat_filename} for camera '{orig_params['name']}'")
+        print(f"Saved: {mat_filename} for Camera'{i}'")
     return mat_save_folder
 
 def load_and_validate_mat(num_view:int, mat_save_folder:str):

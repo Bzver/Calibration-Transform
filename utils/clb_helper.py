@@ -108,8 +108,11 @@ def get_eligible_video_in_folder(video_path:str) -> Tuple[List[str], int]:
     video_list = []
     acceptable_formats = [".mp4", ".avi", ".mov", ".mkv"]
     for file in os.listdir(video_path):
-        if file.startswith("Camera") and any(file.endswith(ext) for ext in acceptable_formats):
-            video_list.append(os.path.join(video_path, file))
+        if any(file.endswith(ext) for ext in acceptable_formats):
+            if file.startswith("Camera"):
+                video_list.append(os.path.join(video_path, file))
+            else:
+                print(f"Video names need to be in the format of 'Camera*: {file}")
         
     return video_list, len(video_list)
 

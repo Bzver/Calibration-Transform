@@ -11,6 +11,12 @@ import utils.clb_separator as cbs
 import utils.clb_transform as cbt
 import utils.slap_functions as cbsp
 
+ROOTPATH = "D:/Project/DLC-Models/3DLC"
+CAMVIEWS = 2  # Number of camera views (can be 2, 3, 4, 5, or 6)
+EXP = None
+CALIB = "D:/Project/DLC-Models/3DLC/2025-07-14 22-17-24"
+MERGED_VIDEO = False
+
 def determine_project_dir(root_path:str, new_project:bool=False) -> Union[str, None]:
     """Determines the project directory to use based on existing folders or user input."""
     if not os.path.isdir(root_path):
@@ -119,19 +125,26 @@ def load_video(num_view:int, video_path:str, dir_path:str, mode, merged_video_st
 
     return True
 
-def create_new_project(num_view:int,root_path:str, exp_video_path:str,
-        calib_video_path:str, merge_video_stream:bool=False) -> bool:
-    project_dir = determine_project_dir(root_path, new_project=True)
-    if not project_dir:
-        return False
-    
-    load_video(num_view, exp_video_path, project_dir, "experiment", merged_video_stream=merge_video_stream)
+def create_new_project(
+        num_view:int,
+        root_path:str,
+        exp_video_path:str,
+        calib_video_path:str,
+        merge_video_stream:bool=False,
+        calibration_only:bool=False
+        ) -> bool:
+
+    if not calibration_only:
+        project_dir = determine_project_dir(root_path, new_project=True)
+        if not project_dir:
+            return False
+        load_video(num_view, exp_video_path, project_dir, "experiment", merged_video_stream=merge_video_stream)
 
     calib_dir = os.path.join(root_path, "SA_calib")
     calib_lost_file = cbh.check_calib_integrity(root_path, num_view)
-
+    
     if calib_lost_file:
-        if "calibration.toml" in calib_lost_file:
+        if any(["calibration.toml" in f for f in calib_lost_file]):
             load_video(num_view, calib_video_path, calib_dir, "calibration", merged_video_stream=merge_video_stream)
             cbsp.generate_calib_board(calib_dir)
             if not cbsp.calibration(calib_dir):
@@ -142,8 +155,9 @@ def create_new_project(num_view:int,root_path:str, exp_video_path:str,
             print("Calibration transformation failed!")
             return False
 
-    if not cbh.check_project_integrity(num_view, root_path, project_dir):
-        return False
+    if not calibration_only:
+        if not cbh.check_project_integrity(num_view, root_path, project_dir):
+            return False
     
     return True
 
@@ -158,12 +172,20 @@ def load_existing_project(num_view:int, root_path:str) -> bool:
     print("Existing project loaded and checked successfully.")
 
 if __name__ == "__main__":
-    ROOTPATH = "D:/Project/SDANNCE-Models/4CAM-250620"
-    CAMVIEWS = 4  # Number of camera views (can be 2, 3, 4, 5, or 6)
-    EXP = os.path.join(ROOTPATH, "20250620-76225401-03-processed.mp4")
-    CALIB = os.path.join(ROOTPATH, "2025-05-17 14-22-55.mkv")
-    MERGED_VIDEO = True
-    if create_new_project(CAMVIEWS, ROOTPATH, EXP, CALIB, MERGED_VIDEO):
+    if not EXP:
+        calibration_only = True
+    else:
+        calibration_only = False
+
+    calib_vid_path = os.path.join(ROOTPATH, CALIB)
+    if create_new_project(
+        num_view=CAMVIEWS,
+        root_path=ROOTPATH,
+        exp_video_path=EXP,
+        calib_video_path=CALIB,
+        merge_video_stream=MERGED_VIDEO,
+        calibration_only=calibration_only
+        ):
         print("Success.")
     else:
         print("Failure.")

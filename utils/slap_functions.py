@@ -2,14 +2,13 @@ import os
 
 import sleap_anipose as slap
 
-def generate_calib_board(root_path:str):
-    board_pic = os.path.join(root_path, "SA_calib", "board.jpg")
-    board_toml = os.path.join(root_path, "SA_calib", "board.toml")
+def generate_calib_board(calib_dir:str):
+    board_pic = os.path.join(calib_dir, "board.jpg")
+    board_toml = os.path.join(calib_dir, "board.toml")
     if os.path.exists(board_pic) and os.path.exists(board_toml):
         print("Existing board.png and board.toml detected. Skipping...")
         return
-    os.makedirs(os.path.join(root_path, "SA_calib"), exist_ok=True)
-    print(f"Generating calibration board and configuration at {root_path}...")
+    print(f"Generating calibration board and configuration at {calib_dir}...")
     slap.draw_board(
         board_name = board_pic, board_x = 8, board_y = 11, 
         square_length = 24.0, marker_length = 19.75, marker_bits = 4, 
