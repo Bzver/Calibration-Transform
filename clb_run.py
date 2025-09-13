@@ -13,10 +13,11 @@ import utils.slap_functions as cbsp
 
 ROOTPATH = "D:/Project/SDANNCE-Models/666-6CAM/"
 CAMVIEWS = 6  # Number of camera views (can be 2, 3, 4, 5, or 6)
-EXP = ""
+EXP = "D:/Project/SDANNCE-Models/666-6CAM/0910toe2.mkv"
 CALIB = "D:/Project/SDANNCE-Models/666-6CAM/2025-09-10 15-31-15.mkv"
 MERGED_VIDEO = True
 EXCLUDE_CAM_ROTATE = [4,5]
+CHECK_EXISTING = False
 
 def determine_project_dir(root_path:str, new_project:bool=False) -> Union[str, None]:
     """Determines the project directory to use based on existing folders or user input."""
@@ -181,14 +182,23 @@ if __name__ == "__main__":
         calibration_only = False
 
     calib_vid_path = os.path.join(ROOTPATH, CALIB)
-    if create_new_project(
-        num_view=CAMVIEWS,
-        root_path=ROOTPATH,
-        exp_video_path=EXP,
-        calib_video_path=CALIB,
-        merge_video_stream=MERGED_VIDEO,
-        calibration_only=calibration_only
+    if not CHECK_EXISTING:
+        if create_new_project(
+            num_view=CAMVIEWS,
+            root_path=ROOTPATH,
+            exp_video_path=EXP,
+            calib_video_path=CALIB,
+            merge_video_stream=MERGED_VIDEO,
+            calibration_only=calibration_only
         ):
-        print("Success.")
+            print("Success.")
+        else:
+            print("Failure.")
     else:
-        print("Failure.")
+        if load_existing_project(
+            num_view=CAMVIEWS,
+            root_path=ROOTPATH
+        ):
+            print("Success.")
+        else:
+            print("Failure.")

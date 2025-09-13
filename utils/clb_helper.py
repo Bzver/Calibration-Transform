@@ -37,7 +37,7 @@ def check_dannce_mat(project_dir:str) -> bool:
     return False
 
 def check_project_integrity(num_view:int, root_path:str, project_dir:str) -> bool:
-    lost_video = check_video_integrity(root_path, num_view)
+    lost_video = check_video_integrity(project_dir, num_view)
     lost_calib = check_calib_integrity(root_path, num_view)
     lost_files = lost_video + lost_calib
 
@@ -91,16 +91,16 @@ def get_calib_count(root_path:str) -> int:
 
 def get_frame_count_cv2(video_path:str) -> int:
     """Gets the total number of frames in a video file using OpenCV."""
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(video_path) # type: ignore
     if not cap.isOpened():
         print(f"Error: Could not open video file at {video_path}")
-        return None
+        return 0
     try:
-        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) # type: ignore
         return frame_count
     except Exception as e:
         print(f"An error occurred while getting frame count: {e}")
-        return None
+        return 0
     finally:
         cap.release()
 
@@ -161,7 +161,7 @@ def generate_sync_profile(num_view:int, project_dir:str) -> bool:
     print(f"\nAll camera sync data saved to: {output_mat_path}")
     return True
 
-def construct_sync_and_params(num_cam:int, calib_dir:str, framecount:str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+def construct_sync_and_params(num_cam:int, calib_dir:str, framecount:int) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     params, sync = [], []
 
     for i in range(num_cam):
@@ -194,7 +194,7 @@ def create_output_dirs(num_view:int, project_dir:str, mode:str) -> List[str]:
             output_dir = os.path.join(project_dir, "Videos", f"Camera{i+1}")
         else:
             print("Invalid mode. Expected 'calibration' or 'experiment'.")
-            return
+            return output_dir_list
         output_dir_list.append(output_dir)
         os.makedirs(output_dir, exist_ok=True)
     print(f"Output directory created inside {project_dir}.")
@@ -207,7 +207,6 @@ def duplicate_calibration_files(calib_dir:str, project_dir:str):
     """
     calib_src_path = os.path.join(calib_dir, "Calibration")
     calib_dest_path = os.path.join(project_dir, "Calibration")
-    expected_calib_file_path = os.path.join(calib_dest_path, "calibration.toml")
 
     if not os.path.exists(calib_src_path):
         print(f"Error: Calibration source directory not found at {calib_src_path}.")
@@ -216,12 +215,8 @@ def duplicate_calibration_files(calib_dir:str, project_dir:str):
     print(f"Duplicating calibration files from {calib_src_path} to {calib_dest_path}...")
     try:
         shutil.copytree(calib_src_path, calib_dest_path, dirs_exist_ok=True)
-        if os.path.exists(expected_calib_file_path):
-            print(f"Calibration files duplicated to {calib_dest_path} successfully.")
-            return True
-        else:
-            print(f"Calibration duplication appeared to succeed, but {expected_calib_file_path} not found.")
-            return False
+        print(f"Calibration files duplicated to {calib_dest_path} successfully.")
+        return True
     except Exception as e:
         print(f"Error duplicating calibration files to {calib_dest_path}: {e}")
         return False
