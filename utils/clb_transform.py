@@ -9,11 +9,11 @@ import scipy.io as sio
 import scipy.spatial.transform as st
 import matplotlib.pyplot as plt
 
-from typing import List, Tuple, Dict, Any, Union
+from typing import List, Dict, Any, Optional, Tuple
 
 from .clb_helper import check_dannce_mat
 
-def process_sleap_calibration(calib_dir:str, show_plots:bool=True, save_mat_files:bool=True) -> bool:
+def process_sleap_calibration(calib_dir:str, show_plots:bool=True, save_mat_files:bool=True, excluded_cams_for_rotation:Optional[List[int]]=None) -> bool:
     """
     Processes a SLEAP calibration file to transform camera parameters,
     visualize the setup, and export results to .mat files.
@@ -29,11 +29,11 @@ def process_sleap_calibration(calib_dir:str, show_plots:bool=True, save_mat_file
     calib_filepath = os.path.join(calib_dir, 'calibration.toml')
     
     original_params_list, camera_positions, camera_orientations, cam_count = extract_original_calibration(calib_filepath)
-    if not original_params_list:
+    if not original_params_list or camera_positions is None or camera_orientations is None:
         return False
     
     P_intersect_orig = calculate_camera_intersect(camera_orientations, camera_positions)
-    plane_rotation_matrix, centroid = calculate_plane_rotation(camera_positions)
+    plane_rotation_matrix, centroid = calculate_plane_rotation(camera_positions, excluded_cams_for_rotation)
     rel_dist_org, rel_ang_org = calculate_relative_geometry_stats(camera_positions, camera_orientations, "Pre-transpose")
 
     transformed_positions, transformed_orientations, final_P_intersect = apply_rotation(
@@ -81,18 +81,17 @@ def process_sleap_calibration(calib_dir:str, show_plots:bool=True, save_mat_file
 
     return True
 
-def extract_original_calibration(calib_filepath:str
-            ) -> Tuple[List[Dict[str, Any]], np.ndarray, np.ndarray, int]:
+def extract_original_calibration(calib_filepath:str) -> Tuple[List[Dict[str, Any]], Optional[np.ndarray], Optional[np.ndarray], int]:
     if not os.path.isfile(calib_filepath):
         print(f"Error: Calibration file not found at {calib_filepath}")
-        return [], [], [], 0
+        return [], None, None, 0
 
     try:
         with open(calib_filepath, 'r') as f:
             clbf = toml.load(f)
     except Exception as e:
         print(f"Error reading or parsing TOML file: {e}")
-        return [], [], [], 0
+        return [], None, None, 0
 
     original_params_list = []
     camera_positions = []
@@ -126,7 +125,7 @@ def extract_original_calibration(calib_filepath:str
 
     if not camera_positions:
         print("No camera data with a 'matrix' key found in the calibration file.")
-        return [], [], [], 0
+        return [], None, None, 0
         
     camera_positions = np.array(camera_positions)
     camera_orientations = np.array(camera_orientations)
@@ -150,10 +149,10 @@ def calculate_camera_intersect(cam_orientations, cam_positions):
     intersection = np.linalg.lstsq(A_lstsq, b_lstsq, rcond=None)[0]
     return intersection
 
-def calculate_plane_rotation(camera_positions):
+def calculate_plane_rotation(camera_positions:np.ndarray, excluded_cams: Optional[List[int]]=None):
     """
     Calculates the rotation matrix needed to align a plane fitted to camera positions
-    with the ground plane (XY-plane).
+    with the ground plane (XY-plane), optionally excluding specified cameras.
 
     This function first fits a plane to a set of 3D camera positions using Principal Component
     Analysis (PCA) to find the plane's normal vector. It then calculates the rotation required
@@ -172,8 +171,27 @@ def calculate_plane_rotation(camera_positions):
             - centroid (np.ndarray): A 1D NumPy array representing the 3D centroid of the
               camera positions.
     """
-    centroid = np.mean(camera_positions, axis=0)
-    covariance_matrix = np.cov(camera_positions - centroid, rowvar=False)
+    if excluded_cams:
+        included_cams_mask = np.ones(camera_positions.shape[0], dtype=bool)
+        print(f"Excluding camera {excluded_cams}")
+        for idx in excluded_cams:
+            if 0 <= idx < camera_positions.shape[0]:
+                included_cams_mask[idx] = False
+            else:
+                print(f"Warning: Excluded camera index {idx} is out of bounds.")
+        
+        filtered_camera_positions = camera_positions[included_cams_mask]
+        
+        if filtered_camera_positions.shape[0] < 3:
+            print("Error: Not enough cameras (minimum 3) to calculate plane rotation after exclusion. Returning identity matrix.")
+            return np.eye(3), np.mean(camera_positions, axis=0) # Return identity and overall centroid
+        
+        centroid = np.mean(camera_positions, axis=0)
+        covariance_matrix = np.cov(filtered_camera_positions - centroid, rowvar=False)
+    else:
+        centroid = np.mean(camera_positions, axis=0)
+        covariance_matrix = np.cov(camera_positions - centroid, rowvar=False)
+
     eigenvalues, eigenvectors = np.linalg.eig(covariance_matrix)
     normal_vector = eigenvectors[:, np.argmin(eigenvalues)]
 
@@ -356,7 +374,7 @@ def load_and_validate_mat(num_view:int, mat_save_folder:str):
         print("Missing .mat files. Saving process has probably failed.")
         missing_files = [filename for filename in mat_file_list if filename not in folder_files]
         print(f"Missing files: {missing_files}")
-        return False
+        return [], []
     
     mat_cam_positions = []
     mat_cam_orientations = []

@@ -11,11 +11,12 @@ import utils.clb_separator as cbs
 import utils.clb_transform as cbt
 import utils.slap_functions as cbsp
 
-ROOTPATH = "D:/Project/DLC-Models/3DLC/3D-Old_R"
-CAMVIEWS = 2  # Number of camera views (can be 2, 3, 4, 5, or 6)
-EXP = None
-CALIB = "D:/Project/DLC-Models/3DLC/3D-Old_R/"
-MERGED_VIDEO = False
+ROOTPATH = "D:/Project/SDANNCE-Models/666-6CAM/"
+CAMVIEWS = 6  # Number of camera views (can be 2, 3, 4, 5, or 6)
+EXP = ""
+CALIB = "D:/Project/SDANNCE-Models/666-6CAM/2025-09-10 15-31-15.mkv"
+MERGED_VIDEO = True
+EXCLUDE_CAM_ROTATE = [4,5]
 
 def determine_project_dir(root_path:str, new_project:bool=False) -> Union[str, None]:
     """Determines the project directory to use based on existing folders or user input."""
@@ -152,7 +153,7 @@ def create_new_project(
                 print("Calibration failed!")
                 return False
 
-        if not cbt.process_sleap_calibration(calib_dir):
+        if not cbt.process_sleap_calibration(calib_dir, excluded_cams_for_rotation=EXCLUDE_CAM_ROTATE):
             print("Calibration transformation failed!")
             return False
 
@@ -171,6 +172,7 @@ def load_existing_project(num_view:int, root_path:str) -> bool:
         return False
     
     print("Existing project loaded and checked successfully.")
+    return True
 
 if __name__ == "__main__":
     if not EXP:
