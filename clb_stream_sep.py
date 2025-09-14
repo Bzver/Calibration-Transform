@@ -24,5 +24,5 @@ if __name__ == "__main__":
         video_filename = os.path.basename(video_file).split(".")[0]
         output_dir = os.path.join(folder_path, f"{video_filename}")
         os.makedirs(output_dir, exist_ok=True)
-        cbs.separate_video_stream(num_view=4, video_filepath=video_file, project_dir=output_dir, mode="calibration")
+        cbs.separate_video_stream(num_view=4, video_filepath=video_file, project_dir=output_dir, mode="calibration", use_gpu=True)
 

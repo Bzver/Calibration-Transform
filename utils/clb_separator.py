@@ -6,7 +6,7 @@ from tqdm import tqdm
 from typing import List, Tuple
 from .clb_helper import create_output_dirs
 
-def separate_video_stream(num_view:int, video_filepath:str, project_dir:str, mode:str) -> bool:
+def separate_video_stream(num_view:int, video_filepath:str, project_dir:str, mode:str, use_gpu:bool) -> bool:
     try:
         if not os.path.isfile(video_filepath):
             print(f"Error: Input video path is not a file: {video_filepath}")
@@ -21,7 +21,7 @@ def separate_video_stream(num_view:int, video_filepath:str, project_dir:str, mod
         view_parameters = (view_width, view_height)
 
         output_dir_list = create_output_dirs(num_view, project_dir, mode)
-        ffmpeg_cmds, skipped_views = assemble_ffmpeg_commands(num_view, view_parameters, video_filepath, output_dir_list, mode)
+        ffmpeg_cmds, skipped_views = assemble_ffmpeg_commands(num_view, view_parameters, video_filepath, output_dir_list, mode, use_gpu)
 
         print("Starting video separation for calibration...")
         for i, cmd in enumerate(ffmpeg_cmds):
@@ -35,12 +35,12 @@ def separate_video_stream(num_view:int, video_filepath:str, project_dir:str, mod
                 for line in process.stdout:
                     if "time=" in line:
                         try:
-                            time_str = line.split("time=")[1].split(" ")[0] # Extract time string (e.g., "00:00:15.12")
+                            time_str = line.split("time=")[1].split(" ")[0] 
                             h, m, s = map(float, time_str.split(':'))
                             current_time_seconds = h * 3600 + m * 60 + s
                             pbar.update(current_time_seconds - pbar.n)
                         except (IndexError, ValueError):
-                            pass # Ignore lines that don't parse as expected
+                            pass
             process.wait()
 
         print("Video separation complete.")
@@ -77,8 +77,14 @@ def acquire_video_metadata(video_filepath:str) -> Tuple[int, int, float]:
     except Exception as e:
         print(f"An error occurred: {e}")
 
-def assemble_ffmpeg_commands(num_view:int, view_parameters:Tuple[int, int], video_filepath:str,
-                    output_dir_list:List[str], mode:str) -> Tuple[List[List[str]], List[int]]:
+def assemble_ffmpeg_commands(
+        num_view: int,
+        view_parameters: Tuple[int, int],
+        video_filepath: str,
+        output_dir_list: List[str],
+        mode: str,
+        use_gpu: bool = False
+        ) -> Tuple[List[List[str]], List[int]]:
     ffmpeg_cmds, skipped_views = [], []
 
     for i in range(num_view):
@@ -93,23 +99,35 @@ def assemble_ffmpeg_commands(num_view:int, view_parameters:Tuple[int, int], vide
             output_filepath = os.path.join(output_dir_list[i], "0.mp4")
         else:
             print("Invalid mode. Expected 'calibration' or 'experiment'.")
-            return
-    
+            return ffmpeg_cmds, skipped_views
+
         if os.path.isfile(output_filepath):
             print(f"{output_filepath} already exists. Skipping view{i+1}")
             skipped_views.append(i)
         else:
-            cmd = [
-                "ffmpeg",
-                "-i", video_filepath,
-                "-filter:v", f"crop={view_parameters[0]}:{view_parameters[1]}:{x_offset}:{y_offset}",
-                "-c:v", "libx264",
-                "-preset", "medium",
-                "-crf", "18",
-                "-progress", "pipe:1",
-                "-nostats",
-                output_filepath,
-            ]
+            cmd = ["ffmpeg"]
+            if use_gpu:
+                cmd.extend([
+                    "-hwaccel", "cuda",
+                    "-hwaccel_output_format", "cuda",
+                    "-i", video_filepath,
+                    "-vf", f"hwdownload,format=nv12,crop={view_parameters[0]}:{view_parameters[1]}:{x_offset}:{y_offset},hwupload_cuda",
+                    "-c:v", "h264_nvenc",
+                    "-preset", "p7",
+                    "-global_quality", "18",
+                    "-rc", "vbr_hq",
+                ])
+            else:
+                cmd.extend([
+                    "-i", video_filepath,
+                    "-filter:v", f"crop={view_parameters[0]}:{view_parameters[1]}:{x_offset}:{y_offset}",
+                    "-c:v", "libx264",
+                    "-preset", "medium",
+                    "-crf", "18",
+                ])
+
+            cmd.extend(["-progress", "pipe:1", "-nostats"])
+            cmd.append(output_filepath)
             ffmpeg_cmds.append(cmd)
 
     return ffmpeg_cmds, skipped_views

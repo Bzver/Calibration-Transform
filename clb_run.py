@@ -13,7 +13,7 @@ import utils.slap_functions as cbsp
 
 ROOTPATH = "D:/Project/SDANNCE-Models/666-6CAM/"
 CAMVIEWS = 6  # Number of camera views (can be 2, 3, 4, 5, or 6)
-EXP = "D:/Project/SDANNCE-Models/666-6CAM/0910toe2.mkv"
+EXP = "D:/Project/SDANNCE-Models/666-6CAM/2025-09-09 21-13-19.mkv"
 CALIB = "D:/Project/SDANNCE-Models/666-6CAM/2025-09-10 15-31-15.mkv"
 MERGED_VIDEO = True
 EXCLUDE_CAM_ROTATE = [4,5]
@@ -62,6 +62,8 @@ def determine_new_project_dir(root_path:str) -> str:
     time_formatted = current_time.strftime("%Y%m%d%H%M%S")
 
     custom_name = input("Custom name for new project directory (leave blank for timestampe name): ").strip()
+    if custom_name.startswith("SD-"):
+        custom_name = custom_name[3:]
     temp_name = f"SD-{custom_name}" if custom_name else f"SD-{time_formatted}"
     base_name = temp_name
     counter = 1
@@ -97,7 +99,7 @@ def load_video(num_view:int, video_path:str, dir_path:str, mode, merged_video_st
             print(f"Error: Input video path is not a file: {video_path} while merged_video_stream is True.")
             return False
     
-        if not cbs.separate_video_stream(num_view, video_path, dir_path, mode):
+        if not cbs.separate_video_stream(num_view, video_path, dir_path, mode, use_gpu=True):
             return False
 
     else:
